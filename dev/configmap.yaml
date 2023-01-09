@@ -13,10 +13,9 @@ istiooperator:
 istio:
   enabled: true
   git:
-    repo: "http://reg.mtritab.com:33000/mtritab/tsb-controlplane.git"
+    repo: "http://reg.mtritaba.com:33000/mtritab/tsb-controlplane.git"
     path: "./"
     tag: "1.6.0"
-    existingSecret: private-git
   values:
     image:
       registry: gcr.io/timm16-mcte-0
