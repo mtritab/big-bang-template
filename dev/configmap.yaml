@@ -16,7 +16,7 @@ istio:
     repo: "https://github.com/tetrateio/tetrate.git"
     path: "./helm/controlplane"
     tag: "1.6.0"
-    existingSecret: github-deploy
+    existingSecret: private-git
   values:
     image:
       registry: gcr.io/timm16-mcte-0
