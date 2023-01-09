@@ -1,0 +1,245 @@
+domain: bigbang.dev
+
+# Uncomment the following settings if using the AWS RKE2 terraform setup
+# istio:
+#   ingressGateways:
+#     public-ingressgateway:
+#       type: "NodePort"
+#       nodePortBase: 30000
+
+istiooperator:
+  enabled: false
+
+istio:
+  enabled: true
+  git:
+    repo: "https://github.com/tetrateio/tetrate.git"
+    path: "./helm/controlplane"
+    tag: "1.6.0"
+    existingSecret: github-deploy
+  values:
+    image:
+      registry: gcr.io/timm16-mcte-0
+      tag: 1.6.0
+    operator:
+      deployment:
+        env:
+          - name: ISTIO_ISOLATION_BOUNDARIES
+            value: "false"
+    spec:
+      components:
+        gitops:
+          enabled: true
+          reconcileInterval: 60s
+        internalCertProvider:
+          certManager:
+            managed: INTERNAL
+        xcp:
+          centralAuthMode: JWT
+          configProtection: {}
+          enableHttpMeshInternalIdentityPropagation: false
+          kubeSpec:
+            deployment:
+              env:
+                - name: ENABLE_GATEWAY_DELETE_HOLD
+                  value: "true"
+                - name: GATEWAY_DELETE_HOLD_SECONDS
+                  value: "20"
+            overlays:
+              - apiVersion: install.xcp.tetrate.io/v1alpha1
+                kind: EdgeXcp
+                name: edge-xcp
+                patches:
+                  - path: spec.components.edgeServer.kubeSpec.deployment.env[-1]
+                    value:
+                      name: ENABLE_ENHANCED_EAST_WEST_ROUTING
+                      value: "true"
+                  - path: spec.components.edgeServer.kubeSpec.deployment.env[-1]
+                    value:
+                      name: DISABLE_TIER1_TIER2_SEPARATION
+                      value: "true"
+                  - path: spec.components.edgeServer.kubeSpec.deployment.env[-1]
+                    value:
+                      name: ENABLE_DNS_RESOLUTION_AT_EDGE
+                      value: "true"
+          rateLimitServer:
+            backend:
+              redis:
+                uri: redis-master.tsb-ratelimit.svc.cluster.local:6379
+      hub: gcr.io/timm16-mcte-0
+      managementPlane:
+        clusterName: gke-bigbang
+        host: timm16.gcp.cx.tetrate.info
+        port: 443
+        selfSigned: true
+      meshExpansion: {}
+      telemetryStore:
+        elastic:
+          host: 34.170.140.66
+          port: 9200
+          protocol: https
+          selfSigned: true
+          version: 7
+    secrets:
+      clusterServiceAccount:
+        JWK: |-
+          {"alg":"RS256","d":"liN0L_e7IJdTET3fv20WkEDJL2C7ZczhNd0SC-ZhcsnFlpXSdbgeWfsfTRvIIeIsMpMUEuWV7GPzLkpmA3N_5trH4XX4__iqe254WlhjHi2bs5yiW0k6Ix4x-me5D-VKyp8oSNglnJy3_KFtysOHe2VqQUR_mY_OGxXyvcNSr1ffhdSwxUR5RzFdxyuzsHGoJYkgum3MqM2VmJKwYz3eC1mml0lwEhi9F3q4J-Ws_Z-xaB48tHKuq0muwF_MnmaSqGLvw2jZG29JOwKpw_35RLaZzdr9_HjdUAOcPDapDLCVfr2dpM-VtM01WMbgN_dbpLxxiUvNxvDx1tW-dd2GjQ","dp":"cR61gInMKBnE6zTw4Bmgi8oi0z0Fz9s3r11B-y2H4i8mDpv2l45ciLKJZFq52DVmyUfhCBkeQdZcBy8n_26f5lYqLHmOV4xtqxi4JpIewjbcnfIbxRL9PFYo5jI-ZNYy8YjgR9FsdqS_61a54LpruavUVFM4Z71HD-OKe8te-wc","dq":"LtHU9-SFp5Pp26HKEsnFeclnyQ5pO0Q1PUBk7uEwiIGwm8hSUMvFE7NjcK6DeV6Zrf2QYqOwLaKg1AJDBxazwUC76JGKVK7SkRw2pD0kx0DJLVvf9f2wN-D1jp4cnGRwevMQvJ-n1T4PL_CtaCGoKHKk2PxDJXOUiqalJx7FA1E","e":"AQAB","kid":"rFjzTFAlYwWTPPHI9w4S3qVxAL3MAOdrbCJGtXBq3cI","kty":"RSA","n":"7HG4k3dhCz3m1-QaMHe5EVM79f83pQ5YfVXCYQOIfkzo87lP2flkwhSj9GFNQZjAZyVjLrtYwv5Xsvd7W5BhgWdYgUT3_xNAUNzkLmNIsoAG5bdWNu51Sf_-k5aIgJVgyHTmGHMAV890fUfMWiRLzll94oz2t7I9ytzRWbWneEsxg3RXg8XByBpypRRjFqUijkHtJp2P2R0XQODtMs7oT3notCeHOTzvF6T1jgr51Z5tbf4BIFN2HJWhxH8tHyTTW5uAn4lKrph0qDhKthsc5yLdhZNW1f_OBfmFr6Mgq-nRIJa4DGjFDk59wgBUtQ62cBLp8XZKTZWWcEhda8Yo2Q","p":"84GOfosrE5DynQEaKv0wRNatR39Bmlk-vdLkBzowJTEIWQN_6oP_wbOEHXb5m-F8MUNhexP5MnLLDBOI433c4H5VzonOnfzDtvdTC7t213V7zoNXDCPXD61NqA47eYjZJD97wVp4dlYKpWLJPzoQs0SJ3mmIvYtLmEJ7SAkJkF8","q":"-JNoOkP482xej0GnKrgAEuP-ZFanG1J30VR-aKaP4S_OLKYz9APFlqgMsZCYIzdPu3aXpX9P1JbyXfguphzC8aisE4ZIIl4ORFRxfgEutkkCcz8oBeyNI7H4BwtZT9MjqHkGdszTeL0621S5q7KxEfn4m_qcUsNRbOdGdzSDccc","qi":"Q4oDlL2GvPiNcRYEsrvskIhSkcn5r_0u8ArOsMEkL_ZKPxKxwmbbUFwc7Tbz0V9rapAJfKgMsbUWNYslpK_sRG0zePK6RW5FX9OTlaVaaadv5U-lsDis1mKvhAMM7V7Qu2z0VxHCV4bu5xbVbB0sbY0tmbQmLbrgTDDjts_LaSc"}
+        clusterFQN: organizations/tetrate/clusters/gke-bigbang
+      elasticsearch:
+        cacert: |-
+          -----BEGIN CERTIFICATE-----
+          MIIDLjCCAhagAwIBAgIRANf0loASs10Np52wCGDUeq4wDQYJKoZIhvcNAQELBQAw
+          ITEMMAoGA1UECxMDdHNiMREwDwYDVQQDEwh0c2ItaHR0cDAeFw0yMzAxMDUxMzM5
+          MjNaFw0yNDAxMDUxMzQ5MjNaMCExDDAKBgNVBAsTA3RzYjERMA8GA1UEAxMIdHNi
+          LWh0dHAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8aL5NS+UDreJw
+          1ODQ54O03AHp9FrGlNjIMrLUKi2ZSUxfX+gqnwqZYyUFjiPPf+tr3vcthhwL0la/
+          MhHwDXfFAH9q6pHToMogE+obapY2lNoObLNfQxxiN+MtNzqD+dPa1d803QLKWTgE
+          ZPMhHw7mfbtkHw0Gcqj7C3SO4vbWDfUCdsHljDxlZroiN6oVk+0bV0OW9yA3/T4P
+          DFRRr4uA/pj/K77/W+CE3d3P2DbSz1m/FRmFYwlpCLeEoslsXaLW+rP0asXdMUSF
+          rFsrNFmZWwmjyXQUbh7Y7Y5ITFjGbplbQjslUyOnFiY30mPQYekJASSOkKsjvQwn
+          1kwSsRjBAgMBAAGjYTBfMA4GA1UdDwEB/wQEAwIChDAdBgNVHSUEFjAUBggrBgEF
+          BQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUNb12THWc
+          PZv9acJmRAGtgGVy/0UwDQYJKoZIhvcNAQELBQADggEBAAKZvL9AfEJ8XbxNWpE/
+          BZUtAzpo+9TkRTqRZyPkVEUDInozJ760MPpZAPksCvFF4KfLMn3aS6FoLNmmkMjL
+          VVqehkh8OFY9R/V3A7XPCjxlX9ShCTYA9FfuQ23OYAlAej6ul4M8PGPITM7E5INR
+          1aXCumtOGvlNVGkFhqQ77Ma0jRWPhE3b8gz+mWpFonVWM771204p4+mn/Kg+cp0S
+          uX72sGlle6QpQEQGNC0bDhTBiGY0IngFZsP4CjKZ4chWa1XkMz89I7JtETmSyVkF
+          r0ujaxTVqBvvPN0pDu8/ywy1eWyNHNRmVAZ55ar0BD7BIlHqqHq1mM11mNXo+Gbc
+          fok=
+          -----END CERTIFICATE-----
+        password: JUBxel9c16lN75zx687c7jZ6
+        username: elastic
+      tsb:
+        cacert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDKjCCAhKgAwIBAgIQawMFrLrPq8FzqNkTIuqY8zANBgkqhkiG9w0BAQsFADAv
+          MRUwEwYDVQQKEwxjZXJ0LW1hbmFnZXIxFjAUBgNVBAMTDXNlbGZzaWduZWQtY2Ew
+          HhcNMjMwMTA1MTM0OTQ4WhcNMjUwNjIzMTM0OTQ4WjAvMRUwEwYDVQQKEwxjZXJ0
+          LW1hbmFnZXIxFjAUBgNVBAMTDXNlbGZzaWduZWQtY2EwggEiMA0GCSqGSIb3DQEB
+          AQUAA4IBDwAwggEKAoIBAQDpKv7gLdYCWYHQuF+jq1+lHew2+2JeJVGarHYU8DdH
+          Rfu6fWz8K95QaNN5VsrkxqJ65jGUesfSzWc09LdjhWbtLynPlUCqix9ywAR6PL7p
+          K87lBtEt4r1Sfn4S+cJK1+BZfdF9WocHhzFTTWoEAI2Ca154XfQ0emC1eN/X2cV+
+          ++SLKoDANfCqtmv3LPPE0f871zbE+txAdD86UbkS8sGWx4+hJ67m89yf7SPvL/tD
+          b2MV3fV+uqdSccAc7yUeluiv/a3xKFalHdxP+ka2t/CdGkkGu22IZ2KkABnTJ7cm
+          yCszzkffyA2kECHc29PaMvIcwwBiGLvHVf//nKqri+7pAgMBAAGjQjBAMA4GA1Ud
+          DwEB/wQEAwICpDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSyxlWa+VQSx1VB
+          tXIPA/kIQz4IZTANBgkqhkiG9w0BAQsFAAOCAQEArZGmtboCNDKwQnjOyitl/rvZ
+          dtVPXF/GhnLjbbfBNOYmV6r5ckkxPU+vvOt7JRAyp5VP7dNQwrk4VAq2uvnIgqNZ
+          bSCS2KDvyqgIMm9h20l//F8Ezy+56o3UgAXIG4TA4F5H5MjsdUFWO3LmvyXB2lPv
+          CVnohUjxZ120u3YLrGtg0zZZmdnzhTGwdGSJ6NuNSoNxCCjo293tARKJeel7j8oo
+          90Neli97pccF4WTrMtihm08mJwuJqfd0qqiy8ryhJT9x8jqiu+btxS6N6wbjligL
+          pJXIbNC3ZglN3QTFkt79IKQTUacUJGiuSDRnI9owdso1fZq7qa5N7QS4qQpMeA==
+          -----END CERTIFICATE-----
+      xcp:
+        rootca: |
+          -----BEGIN CERTIFICATE-----
+          MIIDKjCCAhKgAwIBAgIQawMFrLrPq8FzqNkTIuqY8zANBgkqhkiG9w0BAQsFADAv
+          MRUwEwYDVQQKEwxjZXJ0LW1hbmFnZXIxFjAUBgNVBAMTDXNlbGZzaWduZWQtY2Ew
+          HhcNMjMwMTA1MTM0OTQ4WhcNMjUwNjIzMTM0OTQ4WjAvMRUwEwYDVQQKEwxjZXJ0
+          LW1hbmFnZXIxFjAUBgNVBAMTDXNlbGZzaWduZWQtY2EwggEiMA0GCSqGSIb3DQEB
+          AQUAA4IBDwAwggEKAoIBAQDpKv7gLdYCWYHQuF+jq1+lHew2+2JeJVGarHYU8DdH
+          Rfu6fWz8K95QaNN5VsrkxqJ65jGUesfSzWc09LdjhWbtLynPlUCqix9ywAR6PL7p
+          K87lBtEt4r1Sfn4S+cJK1+BZfdF9WocHhzFTTWoEAI2Ca154XfQ0emC1eN/X2cV+
+          ++SLKoDANfCqtmv3LPPE0f871zbE+txAdD86UbkS8sGWx4+hJ67m89yf7SPvL/tD
+          b2MV3fV+uqdSccAc7yUeluiv/a3xKFalHdxP+ka2t/CdGkkGu22IZ2KkABnTJ7cm
+          yCszzkffyA2kECHc29PaMvIcwwBiGLvHVf//nKqri+7pAgMBAAGjQjBAMA4GA1Ud
+          DwEB/wQEAwICpDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSyxlWa+VQSx1VB
+          tXIPA/kIQz4IZTANBgkqhkiG9w0BAQsFAAOCAQEArZGmtboCNDKwQnjOyitl/rvZ
+          dtVPXF/GhnLjbbfBNOYmV6r5ckkxPU+vvOt7JRAyp5VP7dNQwrk4VAq2uvnIgqNZ
+          bSCS2KDvyqgIMm9h20l//F8Ezy+56o3UgAXIG4TA4F5H5MjsdUFWO3LmvyXB2lPv
+          CVnohUjxZ120u3YLrGtg0zZZmdnzhTGwdGSJ6NuNSoNxCCjo293tARKJeel7j8oo
+          90Neli97pccF4WTrMtihm08mJwuJqfd0qqiy8ryhJT9x8jqiu+btxS6N6wbjligL
+          pJXIbNC3ZglN3QTFkt79IKQTUacUJGiuSDRnI9owdso1fZq7qa5N7QS4qQpMeA==
+          -----END CERTIFICATE-----
+
+flux:
+  interval: 1m
+  rollback:
+    cleanupOnFail: false
+
+logging:
+  values:
+    elasticsearch:
+      master:
+        count: 1
+        persistence:
+          size: 256Mi
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+      data:
+        count: 1
+        persistence:
+          size: 256Mi
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+    kibana:
+      count: 1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+
+monitoring:
+  enabled: true
+  values:
+    prometheus:
+      prometheusSpec:
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+
+fluentbit:
+  values:
+    securityContext:
+      privileged: true
+
+gatekeeper:
+  values:
+    replicas: 1
+    controllerManager:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+    violations:
+      allowedDockerRegistries:
+        parameters:
+          repos:
+            - gcr.io
+      hostNetworking:
+        parameters:
+          excludedResources:
+            - purelb/allocator-.*
+            - purelb/lbnodeagent-.*
+
+
+    audit:
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+
+kyverno:
+  values:
+    replicaCount: 1
+
+twistlock:
+  enabled: false
+  values:
+    console:
+      persistence:
+        size: 256Mi
+
+metrics-server:
+  values:
+    args:
+    - --kubelet-insecure-tls
+
+addons:
+  cert-manager:
+    enabled: true
